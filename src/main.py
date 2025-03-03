@@ -66,6 +66,9 @@ class RobotControlApp:
         # 速度设置区
         self.create_speed_frame()
 
+        # 按键方向控制区
+        self.create_direction_control_frame()
+
     def create_serial_control_frame(self):
         frame = ttk.LabelFrame(self.root, text="串口控制")
         frame.pack(pady=10, padx=10, fill="x")
@@ -357,6 +360,102 @@ class RobotControlApp:
                 self.update_serial_info(f"发送失败: {command.strip()}")
         except ValueError:
             self.update_serial_info("请输入有效的整数速度值")
+
+    def create_direction_control_frame(self):
+        """创建方向控制组件"""
+        self.direction_frame = ttk.LabelFrame(self.root, text="方向控制")
+        self.direction_frame.pack(pady=10, padx=10, fill="x")
+
+        # 模式选择
+        self.mode_var = tk.IntVar(value=0)  # 0: 关节坐标, 1: 世界坐标
+        ttk.Radiobutton(
+            self.direction_frame,
+            text="关节坐标",
+            variable=self.mode_var,
+            value=0,
+            command=self.update_direction_buttons,
+        ).grid(row=0, column=0, padx=5, pady=5)
+        ttk.Radiobutton(
+            self.direction_frame,
+            text="世界坐标",
+            variable=self.mode_var,
+            value=1,
+            command=self.update_direction_buttons,
+        ).grid(row=0, column=1, padx=5, pady=5)
+
+        # 关节坐标模式下的方向按钮
+        self.joint_direction_buttons = []
+        joint_labels = ["关节0+", "关节0-", "关节1+", "关节1-", "关节2+", "关节2-"]
+        for i, label in enumerate(joint_labels):
+            btn = ttk.Button(
+                self.direction_frame,
+                text=label,
+                command=lambda i=i: self.start_joint_move(i),
+            )
+            btn.grid(row=1 + i // 2, column=i % 2, padx=5, pady=5)
+            self.joint_direction_buttons.append(btn)
+
+        # 世界坐标模式下的方向按钮
+        self.world_direction_buttons = []
+        world_labels = ["X+", "X-", "Y+", "Y-", "Z+", "Z-"]
+        for i, label in enumerate(world_labels):
+            btn = ttk.Button(
+                self.direction_frame,
+                text=label,
+                command=lambda i=i: self.start_world_move(i),
+            )
+            btn.grid(row=1 + i // 2, column=i % 2, padx=5, pady=5)
+            self.world_direction_buttons.append(btn)
+
+        # 绑定鼠标松开事件
+        for btn in self.joint_direction_buttons + self.world_direction_buttons:
+            btn.bind("<ButtonRelease-1>", lambda event: self.stop_move())
+
+        # 初始化按钮显示状态
+        self.update_direction_buttons()
+
+    def update_direction_buttons(self):
+        """根据当前模式更新方向按钮的显示状态"""
+        if self.mode_var.get() == 0:  # 关节坐标模式
+            for btn in self.joint_direction_buttons:
+                btn.grid()  # 显示关节坐标按钮
+            for btn in self.world_direction_buttons:
+                btn.grid_remove()  # 隐藏世界坐标按钮
+        else:  # 世界坐标模式
+            for btn in self.joint_direction_buttons:
+                btn.grid_remove()  # 隐藏关节坐标按钮
+            for btn in self.world_direction_buttons:
+                btn.grid()  # 显示世界坐标按钮
+
+    def start_joint_move(self, direction):
+        """关节坐标模式下的移动"""
+        if self.mode_var.get() == 0:  # 关节坐标模式
+            joint_number = direction // 2 + 1  # 关节号 (1, 2, 3)
+            direction_value = 1 if direction % 2 == 0 else 0  # 正方向: 1, 负方向: 0
+            command = f"MovStart_0,{joint_number},{direction_value},\n"
+            if self.serial_controller.send_command(command):
+                self.update_serial_info(f"发送成功: {command.strip()}")
+            else:
+                self.update_serial_info(f"发送失败: {command.strip()}")
+
+    def start_world_move(self, direction):
+        """世界坐标模式下的移动"""
+        if self.mode_var.get() == 1:  # 世界坐标模式
+            axis_number = direction // 2 + 1  # 轴号 (1: X, 2: Y, 3: Z)
+            direction_value = 1 if direction % 2 == 0 else 0  # 正方向: 1, 负方向: 0
+            command = f"MovStart_1,{axis_number},{direction_value},\n"
+            if self.serial_controller.send_command(command):
+                self.update_serial_info(f"发送成功: {command.strip()}")
+            else:
+                self.update_serial_info(f"发送失败: {command.strip()}")
+
+    def stop_move(self):
+        """停止移动"""
+        command = "MovStp\n"
+        if self.serial_controller.send_command(command):
+            self.update_serial_info(f"发送成功: {command.strip()}")
+        else:
+            self.update_serial_info(f"发送失败: {command.strip()}")
 
 
 # 主程序
