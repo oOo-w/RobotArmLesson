@@ -370,7 +370,7 @@ class RobotControlApp:
             total_distance = (dx**2 + dy**2 + dz**2) ** 0.5
 
             # 计算分段参数
-            num_steps = 100  # 可根据需要调整
+            num_steps = 20  # 可根据需要调整
             speed_increment = (end_speed - start_speed) / num_steps
             distance_increment = total_distance / num_steps
 
@@ -381,7 +381,7 @@ class RobotControlApp:
                 delta_y = dy * distance_increment / total_distance
                 delta_z = dz * distance_increment / total_distance
 
-                command = f"DescartesPointOffset_{delta_x},{delta_y},{delta_z},{current_speed}\n"
+                command = f"DescartesLinearOffset_{delta_x},{delta_y},{delta_z},{current_speed}\n"
                 if not self.serial_controller.send_command(command):
                     raise Exception("发送命令失败")
                 time.sleep(0.1)  # 根据实际需求调整间隔时间
