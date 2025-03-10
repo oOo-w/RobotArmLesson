@@ -2,7 +2,7 @@ import tkinter as tk
 from tkinter import ttk, messagebox
 import serial
 import serial.tools.list_ports
-
+import time
 
 # 串口通信类
 class SerialController:
@@ -65,6 +65,9 @@ class RobotControlApp:
 
         # 速度设置区
         self.create_speed_frame()
+        
+        # 变速区
+        self.create_variable_speed_frame()
 
     def create_serial_control_frame(self):
         frame = ttk.LabelFrame(self.root, text="串口控制")
@@ -314,6 +317,71 @@ class RobotControlApp:
         open_btn.grid(row=0, column=0, padx=5, pady=5)
         close_btn = ttk.Button(frame, text="关闭吸嘴", command=self.close_suction)
         close_btn.grid(row=0, column=1, padx=5, pady=5)
+
+    def create_variable_speed_frame(self):
+      frame = ttk.LabelFrame(self.root, text="变速运动")
+      frame.pack(pady=10, padx=10, fill="x")
+    
+      # 目标坐标
+      ttk.Label(frame, text="目标X:").grid(row=0, column=0, padx=5, pady=5)
+      self.target_x = ttk.Entry(frame, width=10)
+      self.target_x.grid(row=0, column=1, padx=5, pady=5)
+    
+      ttk.Label(frame, text="目标Y:").grid(row=0, column=2, padx=5, pady=5)
+      self.target_y = ttk.Entry(frame, width=10)
+      self.target_y.grid(row=0, column=3, padx=5, pady=5)
+    
+      ttk.Label(frame, text="目标Z:").grid(row=0, column=4, padx=5, pady=5)
+      self.target_z = ttk.Entry(frame, width=10)
+      self.target_z.grid(row=0, column=5, padx=5, pady=5)
+    
+      # 速度设置
+      ttk.Label(frame, text="起始速度:").grid(row=1, column=0, padx=5, pady=5)
+      self.start_speed = ttk.Entry(frame, width=10)
+      self.start_speed.grid(row=1, column=1, padx=5, pady=5)
+    
+      ttk.Label(frame, text="最终速度:").grid(row=1, column=2, padx=5, pady=5)
+      self.end_speed = ttk.Entry(frame, width=10)
+      self.end_speed.grid(row=1, column=3, padx=5, pady=5)
+    
+      # 开始按钮
+      start_btn = ttk.Button(frame, text="开始变速运动", command=self.start_variable_speed)
+      start_btn.grid(row=1, column=4, columnspan=2, padx=5, pady=5)
+    def start_variable_speed(self):
+        try:
+         # 获取输入值
+         target_x = float(self.target_x.get())
+         target_y = float(self.target_y.get())
+         target_z = float(self.target_z.get())
+         start_speed = float(self.start_speed.get())
+         end_speed = float(self.end_speed.get())
+        
+         # 计算总距离
+         dx = target_x 
+         dy = target_y
+         dz = target_z
+         total_distance = (dx**2 + dy**2 + dz**2)**0.5
+        
+         # 计算分段参数
+         num_steps = 100  # 可根据需要调整
+         speed_increment = (end_speed - start_speed) / num_steps
+         distance_increment = total_distance / num_steps
+        
+         # 执行分段运动
+         for i in range(num_steps):
+            current_speed = start_speed + i * speed_increment
+            delta_x = dx * distance_increment / total_distance
+            delta_y = dy * distance_increment / total_distance
+            delta_z = dz * distance_increment / total_distance
+            
+            command = f"DescartesPointOffset_{delta_x},{delta_y},{delta_z},{current_speed}\n"
+            if not self.serial_controller.send_command(command):
+                raise Exception("发送命令失败")
+            time.sleep(0.1)  # 根据实际需求调整间隔时间
+            
+         self.update_serial_info("变速运动完成")
+        except Exception as e:
+         self.update_serial_info(f"变速运动出错: {str(e)}")
 
     def open_suction(self):
         command = "Suction_1\n"
